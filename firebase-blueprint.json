@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "users": {
+      "title": "users",
+      "description": "User profiles and platform roles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": {
+          "type": "string",
+          "enum": ["Applicant", "Learner", "Facilitator", "Programme Manager", "M&E Manager", "Super Admin"]
+        },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "programmes": {
+      "title": "programmes",
+      "description": "Educational and empowerment programmes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "duration": { "type": "string" },
+        "deliveryFormat": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "status"]
+    },
+    "auditLogs": {
+      "title": "auditLogs",
+      "description": "Immutable platform audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "resource": { "type": "string" },
+        "details": { "type": "object" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["actorId", "action", "timestamp"]
+    }
+  }
+}

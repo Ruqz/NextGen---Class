@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Programmes collection
+    match /programmes/{programmeId} {
+      allow read, write: if true;
+    }
+
+    // Cohorts collection
+    match /cohorts/{cohortId} {
+      allow read, write: if true;
+    }
+
+    // Application Forms (Templates & Configs)
+    match /applicationForms/{formId} {
+      allow read, write: if true;
+    }
+
+    // Programme Configs
+    match /programmeConfigs/{programmeId} {
+      allow read, write: if true;
+    }
+
+    // Applications collection
+    match /applications/{applicationId} {
+      allow read, write: if true;
+    }
+
+    // Audit logs
+    match /auditLogs/{logId} {
+      allow read, write: if true;
+    }
+
+    // Default fallback
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
