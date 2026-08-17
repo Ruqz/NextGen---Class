@@ -16,7 +16,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ onNavigate }) => {
         </div>
         <h2 className="text-xl font-bold text-slate-900">Page Not Found</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
-          The requested path does not exist on the NextGen PRO platform.
+          The requested path does not exist on the NextGen Class platform.
         </p>
         <div className="pt-2">
           <Button

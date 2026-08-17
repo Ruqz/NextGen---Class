@@ -600,7 +600,7 @@ export const CurriculumManagementPage: React.FC = () => {
                         No weeks added to this module yet. Click "Add Week" to configure the weekly syllabus.
                       </div>
                     ) : (
-                      moduleItem.weeks.map((week) => (
+                      (moduleItem.weeks || []).map((week) => (
                         <div key={week.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
                           {/* WEEK HEADER */}
                           <div className="p-4 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between">
@@ -631,7 +631,7 @@ export const CurriculumManagementPage: React.FC = () => {
                                 No lessons configured for this week yet. Click "Add Lesson" above.
                               </div>
                             ) : (
-                              week.lessons.map((lesson) => (
+                              (week.lessons || []).map((lesson) => (
                                 <div
                                   key={lesson.id}
                                   className="p-4 bg-white border border-slate-200 rounded-lg space-y-3 shadow-2xs"
@@ -676,7 +676,7 @@ export const CurriculumManagementPage: React.FC = () => {
                                       </div>
                                     ) : (
                                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                        {lesson.resources.map((res) => (
+                                        {(lesson.resources || []).map((res) => (
                                           <div
                                             key={res.id}
                                             className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-start justify-between gap-2"

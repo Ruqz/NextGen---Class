@@ -306,7 +306,7 @@ export const PMApplicationDashboard: React.FC = () => {
           <Select
             options={[
               { value: 'ALL', label: 'All Programmes' },
-              ...programmes.map((p) => ({ value: p.id, label: p.name })),
+              ...(programmes || []).map((p) => ({ value: p.id, label: p.name })),
             ]}
             value={programmeFilter}
             onChange={(e) => setProgrammeFilter(e.target.value)}
@@ -315,7 +315,7 @@ export const PMApplicationDashboard: React.FC = () => {
           <Select
             options={[
               { value: 'ALL', label: 'All Cohorts' },
-              ...cohorts.map((c) => ({ value: c.id, label: `${c.name} (${c.code})` })),
+              ...(cohorts || []).map((c) => ({ value: c.id, label: `${c.name} (${c.code})` })),
             ]}
             value={cohortFilter}
             onChange={(e) => setCohortFilter(e.target.value)}

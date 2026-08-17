@@ -24,6 +24,11 @@ import {
 import { updateApplicationStatuses } from './applications';
 import { updateUserRoleInFirestore } from './auth';
 import { createEnrolmentForAcceptedApplicant } from './learners';
+import {
+  sendAssessmentInvitationNotification,
+  sendAcceptanceNotification,
+  sendRejectionNotification,
+} from './notifications';
 
 const INVITATIONS_COLLECTION = 'assessmentInvitations';
 const ADMISSION_DECISIONS_COLLECTION = 'admissionDecisions';
@@ -82,6 +87,20 @@ export const issueAssessmentInvitation = async (params: {
   await updateApplicationStatuses(application.id, {
     assessmentStatus: 'IN_PROGRESS',
   });
+
+  // Dispatch real notification
+  await sendAssessmentInvitationNotification({
+    name: application.applicantName,
+    email: application.applicantEmail,
+    phone: application.applicantPhone,
+    programmeName: application.programmeName,
+    cohortName: application.cohortName,
+    assessmentTitle,
+    durationMinutes: 45,
+    passThreshold: passThresholdPercentage,
+    deadline: expiresAt ? new Date(expiresAt).toLocaleDateString() : '7 Days',
+    token,
+  }).catch((e) => console.warn('Failed to send assessment invite email:', e));
 
   return createdInvitation;
 };
@@ -224,27 +243,15 @@ export const processAdmissionDecision = async (params: {
   let learnerAccountId: string | undefined = undefined;
 
   // RULE CHECK: Only create or upgrade learner account & enrolment IF decision is ACCEPTED
+  // Note: Acceptance creates the Enrolment record & Learner ID, but platform access remains
+  // pending until the Program Manager activates the account.
   if (decision === 'ACCEPTED') {
     try {
-      // Execute MODULE 9 Enrolment Workflow:
-      // 1. Create or link Firebase user
-      // 2. Create learner profile
-      // 3. Create enrolment
-      // 4. Link programme
-      // 5. Link cohort
-      // 6. Assign learner ID
-      // 7. Activate learner dashboard
-      const enrolment = await createEnrolmentForAcceptedApplicant(application);
+      const enrolment = await createEnrolmentForAcceptedApplicant(application, false);
       learnerAccountCreated = true;
       learnerAccountId = enrolment.learnerId;
     } catch (err) {
       console.error('Error executing learner enrolment on ACCEPTED decision:', err);
-      // Fallback role update if enrolment creation hit edge case
-      if (application.applicantId) {
-        await updateUserRoleInFirestore(application.applicantId, 'Learner').catch(() => {});
-        learnerAccountCreated = true;
-        learnerAccountId = application.applicantId;
-      }
     }
   }
 
@@ -287,6 +294,26 @@ export const processAdmissionDecision = async (params: {
     reviewNotes: reviewNotes || application.reviewNotes,
   });
 
+  // Dispatch notification to candidate
+  if (decision === 'ACCEPTED') {
+    await sendAcceptanceNotification({
+      name: application.applicantName,
+      email: application.applicantEmail,
+      phone: application.applicantPhone,
+      programmeName: application.programmeName,
+      cohortName: application.cohortName,
+      startDate: 'Upcoming Cohort Orientation',
+    }).catch((e) => console.warn('Failed to send acceptance email:', e));
+  } else if (decision === 'REJECTED') {
+    await sendRejectionNotification({
+      name: application.applicantName,
+      email: application.applicantEmail,
+      phone: application.applicantPhone,
+      programmeName: application.programmeName,
+      cohortName: application.cohortName,
+    }).catch((e) => console.warn('Failed to send rejection email:', e));
+  }
+
   return { id: docRef.id, ...decisionRecord };
 };
 
@@ -320,10 +347,16 @@ export const bulkProcessAdmissionDecisions = async (params: {
  * Subscribe to admission decision records
  */
 export const subscribeToAdmissionDecisions = (
-  callback: (decisions: AdmissionDecision[]) => void
+  callback: (decisions: AdmissionDecision[]) => void,
+  applicantId?: string
 ) => {
+  const colRef = collection(db, ADMISSION_DECISIONS_COLLECTION);
+  const q = applicantId
+    ? query(colRef, where('applicantId', '==', applicantId))
+    : query(colRef);
+
   return onSnapshot(
-    collection(db, ADMISSION_DECISIONS_COLLECTION),
+    q,
     (snap) => {
       const list = snap.docs.map((d) => ({
         id: d.id,

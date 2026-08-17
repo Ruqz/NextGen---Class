@@ -157,7 +157,7 @@ export const PublicProgrammePage: React.FC<PublicProgrammePageProps> = ({
                 No active cohorts currently configured for this programme.
               </Card>
             ) : (
-              cohorts.map((cohort) => (
+              (cohorts || []).map((cohort) => (
                 <Card
                   key={cohort.id}
                   className={`p-5 transition-all ${

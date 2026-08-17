@@ -337,7 +337,7 @@ export const AssessmentTakingPage: React.FC<AssessmentTakingPageProps> = ({
               </h3>
 
               <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {assessment.questions.map((q, idx) => {
+                {(assessment.questions || []).map((q, idx) => {
                   const candidateChoiceId = completedAttempt.answers[q.id];
                   const isQuestionCorrect = candidateChoiceId === q.correctAnswerId;
 
@@ -360,7 +360,7 @@ export const AssessmentTakingPage: React.FC<AssessmentTakingPageProps> = ({
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-                        {q.choices.map((c) => {
+                        {(q.choices || []).map((c) => {
                           const isCandidateChoice = candidateChoiceId === c.id;
                           const isCorrectChoice = c.id === q.correctAnswerId;
 
@@ -552,7 +552,7 @@ export const AssessmentTakingPage: React.FC<AssessmentTakingPageProps> = ({
 
       {/* Question Navigator Bar */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
-        {questionsList.map((q, idx) => {
+        {(questionsList || []).map((q, idx) => {
           const isAnswered = Boolean(answers[q.id]);
           const isCurrent = idx === currentQuestionIndex;
 
@@ -593,7 +593,7 @@ export const AssessmentTakingPage: React.FC<AssessmentTakingPageProps> = ({
 
           {/* Answer Option Choices */}
           <div className="space-y-3">
-            {currentQ.choices.map((choice) => {
+            {(currentQ.choices || []).map((choice) => {
               const isSelected = answers[currentQ.id] === choice.id;
 
               return (

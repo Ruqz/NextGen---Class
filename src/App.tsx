@@ -1,5 +1,5 @@
 /**
- * NextGen PRO Programme Management Platform
+ * NextGen Class Programme Management Platform
  */
 
 import React from 'react';

@@ -31,7 +31,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       {/* Role Banner Notification */}
-      <Alert type="info" title={`NextGen PRO — ${activeRole} Workspace Active`}>
+      <Alert type="info" title={`NextGen Class — ${activeRole} Workspace Active`}>
         You are currently viewing the platform from the perspective of a <span className="font-semibold">{activeRole}</span>.
         All data access and view states comply with Firestore security rules and Role-Based Access Control (RBAC).
       </Alert>

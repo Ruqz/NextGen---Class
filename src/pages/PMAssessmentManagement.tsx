@@ -54,9 +54,15 @@ import {
   Award,
   Search,
   BookOpen,
+  Sparkles,
+  BrainCircuit,
 } from 'lucide-react';
 
-export const PMAssessmentManagement: React.FC = () => {
+interface PMAssessmentManagementProps {
+  onNavigate?: (path: string) => void;
+}
+
+export const PMAssessmentManagement: React.FC<PMAssessmentManagementProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'assessments' | 'banks' | 'attempts'>('assessments');
 
   // Core Data States
@@ -444,7 +450,16 @@ export const PMAssessmentManagement: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNavigate ? onNavigate('/portal/pm/ai') : (window.location.pathname = '/portal/pm/ai')}
+            className="border-orange-300 text-orange-700 hover:bg-orange-50 font-semibold"
+            title="Generate curriculum-grounded assessment questions with Gemini AI and human admin review"
+          >
+            <BrainCircuit className="w-4 h-4 mr-1 text-orange-600" /> ✨ AI Question Generator
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -748,7 +763,7 @@ export const PMAssessmentManagement: React.FC = () => {
                         <p className="font-semibold text-slate-900 text-sm">{q.text}</p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                          {q.choices.map((c) => {
+                          {(q.choices || []).map((c) => {
                             const isCorrect = c.id === q.correctAnswerId;
                             return (
                               <div

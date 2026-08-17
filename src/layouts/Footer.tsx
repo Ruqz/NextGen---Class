@@ -12,7 +12,7 @@ export const Footer: React.FC = () => {
                 <Layers className="w-4 h-4" />
               </div>
               <span className="font-bold text-sm text-white tracking-tight">
-                NextGen <span className="text-orange-500">PRO</span>
+                NextGen <span className="text-orange-500">Class</span>
               </span>
             </div>
             <p className="text-slate-400 text-xs leading-relaxed">
@@ -58,7 +58,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500">
-          <p>© {new Date().getFullYear()} NextGen PRO Programme Management Platform. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} NextGen Class Programme Management Platform. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <span className="hover:text-slate-300 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-300 cursor-pointer">Terms of Service</span>

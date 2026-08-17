@@ -2,21 +2,63 @@
   "entities": {
     "users": {
       "title": "users",
-      "description": "User profiles and platform roles",
+      "description": "Core user identities and access status",
       "type": "object",
       "properties": {
-        "uid": { "type": "string" },
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
         "email": { "type": "string" },
-        "displayName": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "role": {
+        "accountType": {
           "type": "string",
-          "enum": ["Applicant", "Learner", "Facilitator", "Programme Manager", "M&E Manager", "Super Admin"]
+          "enum": ["APPLICANT", "LEARNER", "STAFF"]
+        },
+        "accountStatus": {
+          "type": "string",
+          "enum": ["ACTIVE", "SUSPENDED", "INACTIVE"]
         },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
-      "required": ["uid", "email", "role"]
+      "required": ["id", "email", "accountType", "accountStatus"]
+    },
+    "staffProfiles": {
+      "title": "staffProfiles",
+      "description": "Internal staff role assignments and permissions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "staffRole": {
+          "type": "string",
+          "enum": ["PROGRAMME_MANAGER", "FACILITATOR", "ME", "ADMIN"]
+        },
+        "permissions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "staffRole", "active"]
+    },
+    "enrolments": {
+      "title": "enrolments",
+      "description": "Learner programme and cohort enrolment records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "programmeId": { "type": "string" },
+        "cohortId": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "COMPLETED", "WITHDRAWN", "SUSPENDED"]
+        },
+        "enrolledAt": { "type": "string" },
+        "completedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "programmeId", "cohortId", "status"]
     },
     "programmes": {
       "title": "programmes",

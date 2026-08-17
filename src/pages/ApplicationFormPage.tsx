@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Cohort, Programme, ApplicationFormTemplate, UploadedFileMeta } from '../types';
-import { getCohorts, getProgrammes } from '../services/programmes';
+import { getCohorts, getProgrammes, seedInitialDataIfEmpty } from '../services/programmes';
 import { getPublishedFormForProgramme, seedDefaultFormIfEmpty } from '../services/formBuilder';
 import { submitApplication } from '../services/applications';
+import { sendApplicationReceivedNotification } from '../services/notifications';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -50,6 +51,7 @@ export const ApplicationFormPage: React.FC<ApplicationFormPageProps> = ({
       setLoading(true);
       setError(null);
       try {
+        await seedInitialDataIfEmpty().catch(console.error);
         const allCohorts = await getCohorts();
         const selectedCohort =
           allCohorts.find((c) => c.id === cohortId) || allCohorts[0];
@@ -142,6 +144,17 @@ export const ApplicationFormPage: React.FC<ApplicationFormPageProps> = ({
         fieldSnapshots: formTemplate?.fields || [],
         sectionSnapshots: formTemplate?.sections || [],
       });
+
+      // Dispatch real notification & log delivery
+      await sendApplicationReceivedNotification({
+        name: applicantName.trim(),
+        email: applicantEmail.trim(),
+        phone: applicantPhone.trim(),
+        applicationId: appId,
+        programmeName: programme?.name || cohort.programmeName || 'Flagship Programme',
+        cohortName: cohort.name,
+        submissionDate: new Date().toLocaleDateString(),
+      }).catch((e) => console.warn('Notification dispatch non-blocking error:', e));
 
       setSubmittedAppId(appId);
     } catch (err: any) {

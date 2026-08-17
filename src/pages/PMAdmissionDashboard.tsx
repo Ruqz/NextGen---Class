@@ -7,6 +7,8 @@ import {
   AdmissionDecisionType,
   Programme,
   Cohort,
+  LearnerProfile,
+  Enrolment,
 } from '../types';
 import {
   subscribeToAllApplications,
@@ -25,6 +27,13 @@ import {
   bulkProcessAdmissionDecisions,
   subscribeToAdmissionDecisions,
 } from '../services/admissions';
+import {
+  subscribeToLearnerProfiles,
+  subscribeToAllEnrolments,
+  activateLearnerAccount,
+  suspendLearnerAccount,
+  reactivateLearnerAccount,
+} from '../services/learners';
 import { getProgrammes, getCohorts } from '../services/programmes';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -58,6 +67,7 @@ import {
   HelpCircle,
   ShieldCheck,
   Zap,
+  BookOpen,
 } from 'lucide-react';
 
 export const PMAdmissionDashboard: React.FC = () => {
@@ -67,6 +77,8 @@ export const PMAdmissionDashboard: React.FC = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [learners, setLearners] = useState<LearnerProfile[]>([]);
+  const [enrolments, setEnrolments] = useState<Enrolment[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +92,7 @@ export const PMAdmissionDashboard: React.FC = () => {
   const [selectedProgramme, setSelectedProgramme] = useState<string>('ALL');
   const [selectedCohort, setSelectedCohort] = useState<string>('ALL');
   const [activeTab, setActiveTab] = useState<
-    'ALL' | 'QUALIFIED' | 'INVITED' | 'COMPLETED' | 'READY' | 'ACCEPTED' | 'WAITLISTED' | 'REJECTED' | 'MANUAL_REVIEW'
+    'ALL' | 'QUALIFIED' | 'INVITED' | 'COMPLETED' | 'READY' | 'ACCEPTED' | 'ENROLLED' | 'WAITLISTED' | 'REJECTED' | 'MANUAL_REVIEW'
   >('ALL');
 
   // Selection & Bulk Action State
@@ -103,11 +115,14 @@ export const PMAdmissionDashboard: React.FC = () => {
   const [viewingInvitation, setViewingInvitation] = useState<AssessmentInvitation | null>(null);
 
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [copiedCredentials, setCopiedCredentials] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubApps: () => void;
     let unsubInvs: () => void;
     let unsubDecs: () => void;
+    let unsubLearners: () => void;
+    let unsubEnrolments: () => void;
 
     const initData = async () => {
       setLoading(true);
@@ -135,7 +150,6 @@ export const PMAdmissionDashboard: React.FC = () => {
         // Subscriptions
         unsubApps = subscribeToAllApplications((appsList) => {
           setApplications(appsList);
-          // If Firestore applications are empty, seed sample applications for demonstration
           if (appsList.length === 0) {
             seedSampleApplications();
           }
@@ -147,6 +161,14 @@ export const PMAdmissionDashboard: React.FC = () => {
 
         unsubDecs = subscribeToAdmissionDecisions((decsList) => {
           setDecisions(decsList);
+        });
+
+        unsubLearners = subscribeToLearnerProfiles((learnersList) => {
+          setLearners(learnersList);
+        });
+
+        unsubEnrolments = subscribeToAllEnrolments((enrolmentsList) => {
+          setEnrolments(enrolmentsList);
         });
       } catch (err: any) {
         setError(err.message || 'Failed to load admission dashboard data.');
@@ -161,6 +183,8 @@ export const PMAdmissionDashboard: React.FC = () => {
       if (unsubApps) unsubApps();
       if (unsubInvs) unsubInvs();
       if (unsubDecs) unsubDecs();
+      if (unsubLearners) unsubLearners();
+      if (unsubEnrolments) unsubEnrolments();
     };
   }, []);
 
@@ -256,6 +280,17 @@ export const PMAdmissionDashboard: React.FC = () => {
     return map;
   }, [invitations]);
 
+  // Helper map for learner profiles by email
+  const learnerByEmailMap = React.useMemo(() => {
+    const map = new Map<string, LearnerProfile>();
+    learners.forEach((l) => {
+      if (l.email) {
+        map.set(l.email.toLowerCase(), l);
+      }
+    });
+    return map;
+  }, [learners]);
+
   // Derived Filtered Applications
   const filteredApplications = React.useMemo(() => {
     return applications.filter((app) => {
@@ -288,7 +323,7 @@ export const PMAdmissionDashboard: React.FC = () => {
           (app.assessmentStatus === 'PASSED' || (inv?.percentage !== undefined && inv.percentage >= passThreshold)) &&
           app.admissionStatus !== 'ACCEPTED' &&
           app.admissionStatus !== 'REJECTED';
-      } else if (activeTab === 'ACCEPTED') {
+      } else if (activeTab === 'ACCEPTED' || activeTab === 'ENROLLED') {
         matchesTab = app.admissionStatus === 'ACCEPTED';
       } else if (activeTab === 'WAITLISTED') {
         matchesTab = app.admissionStatus === 'WAITLISTED';
@@ -333,6 +368,42 @@ export const PMAdmissionDashboard: React.FC = () => {
       manualReview,
     };
   }, [applications, invitations, passThreshold]);
+
+  // Learner Activation & Access Handlers
+  const handleActivateLearner = async (learnerId: string) => {
+    try {
+      await activateLearnerAccount(learnerId);
+      setSuccessMsg(`Learner ID ${learnerId} access has been successfully ACTIVATED! The learner can now log in.`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to activate learner access.');
+    }
+  };
+
+  const handleSuspendLearner = async (learnerId: string) => {
+    try {
+      await suspendLearnerAccount(learnerId);
+      setSuccessMsg(`Learner ID ${learnerId} access has been SUSPENDED.`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to suspend learner access.');
+    }
+  };
+
+  const handleReactivateLearner = async (learnerId: string) => {
+    try {
+      await reactivateLearnerAccount(learnerId);
+      setSuccessMsg(`Learner ID ${learnerId} access has been REACTIVATED.`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to reactivate learner access.');
+    }
+  };
+
+  const handleCopyCredentials = (learnerId: string, email: string) => {
+    const text = `NextGen Class Learner Credentials:\nLearner ID: ${learnerId}\nRegistered Email: ${email}\nInitial Password: NextGen2026!\nPlatform Login: ${window.location.origin}/`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCredentials(learnerId);
+      setTimeout(() => setCopiedCredentials(null), 3000);
+    });
+  };
 
   // Handle Multi-Select Checkbox
   const toggleSelectAll = () => {
@@ -509,6 +580,19 @@ export const PMAdmissionDashboard: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 self-stretch md:self-auto">
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => {
+              window.history.pushState({}, '', '/staff/assessment-resources');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}
+            className="bg-slate-800/80 hover:bg-slate-800 text-slate-100 border-slate-700 font-bold text-xs"
+          >
+            <BookOpen className="w-4 h-4 mr-1.5 text-orange-400" />
+            Assessment Resources & Study Guides
+          </Button>
+
           <Button
             variant="primary"
             size="md"
@@ -694,7 +778,8 @@ export const PMAdmissionDashboard: React.FC = () => {
             { id: 'INVITED', label: 'Invited Active', count: metrics.invited },
             { id: 'COMPLETED', label: 'Assessment Completed', count: metrics.completed },
             { id: 'READY', label: 'Ready for Admission', count: metrics.passedThresholdCount },
-            { id: 'ACCEPTED', label: 'Accepted (Learners)', count: metrics.accepted },
+            { id: 'ACCEPTED', label: 'Accepted Candidates', count: metrics.accepted },
+            { id: 'ENROLLED', label: 'Enrolled & Access Activation', count: learners.length },
             { id: 'WAITLISTED', label: 'Waitlisted', count: metrics.waitlisted },
             { id: 'REJECTED', label: 'Rejected', count: metrics.rejected },
             { id: 'MANUAL_REVIEW', label: 'Manual Review', count: metrics.manualReview },

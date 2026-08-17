@@ -409,6 +409,31 @@ export const initializePortalFirestoreData = async (
 };
 
 // --- CLASSES SERVICE ---
+export const createClassSession = async (
+  sessionData: Omit<ClassSession, 'id' | 'createdAt'>
+): Promise<string> => {
+  const docRef = doc(collection(db, CLASSES_COLLECTION));
+  const newSession: ClassSession = cleanFirestoreData({
+    id: docRef.id,
+    ...sessionData,
+    createdAt: new Date().toISOString(),
+  });
+  await setDoc(docRef, newSession);
+  return docRef.id;
+};
+
+export const updateClassSession = async (
+  sessionId: string,
+  updates: Partial<ClassSession>
+): Promise<void> => {
+  await updateDoc(doc(db, CLASSES_COLLECTION, sessionId), cleanFirestoreData(updates));
+};
+
+export const deleteClassSession = async (sessionId: string): Promise<void> => {
+  const { deleteDoc } = await import('firebase/firestore');
+  await deleteDoc(doc(db, CLASSES_COLLECTION, sessionId));
+};
+
 export const subscribeToClasses = (
   programmeId: string,
   callback: (classes: ClassSession[]) => void

@@ -1,5 +1,5 @@
 /**
- * Utility functions for NextGen PRO
+ * Utility functions for NextGen Class
  */
 
 export function cn(...classes: (string | boolean | undefined | null)[]): string {

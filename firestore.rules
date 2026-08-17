@@ -2,42 +2,248 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ----------------------------------------------------
+    // USERS & STAFF PROFILES
+    // ----------------------------------------------------
     match /users/{userId} {
       allow read, write: if true;
     }
 
-    // Programmes collection
+    match /staffProfiles/{userId} {
+      allow read, write: if true;
+    }
+
+    match /learners/{learnerId} {
+      allow read, write: if true;
+    }
+
+    match /enrolments/{enrolmentId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // PROGRAMMES, COHORTS & FORMS
+    // ----------------------------------------------------
     match /programmes/{programmeId} {
       allow read, write: if true;
     }
 
-    // Cohorts collection
     match /cohorts/{cohortId} {
       allow read, write: if true;
     }
 
-    // Application Forms (Templates & Configs)
-    match /applicationForms/{formId} {
-      allow read, write: if true;
-    }
-
-    // Programme Configs
     match /programmeConfigs/{programmeId} {
       allow read, write: if true;
     }
 
-    // Applications collection
+    match /applicationForms/{formId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // APPLICATIONS & ADMISSIONS
+    // ----------------------------------------------------
     match /applications/{applicationId} {
       allow read, write: if true;
     }
 
-    // Audit logs
+    match /assessmentInvitations/{invitationId} {
+      allow read, write: if true;
+    }
+
+    match /admissionDecisions/{decisionId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // CURRICULUM, CLASSES & ATTENDANCE
+    // ----------------------------------------------------
+    match /curriculumModules/{moduleId} {
+      allow read, write: if true;
+    }
+
+    match /classes/{classId} {
+      allow read, write: if true;
+    }
+
+    match /classSessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    match /attendance/{recordId} {
+      allow read, write: if true;
+    }
+
+    match /attendanceRecords/{recordId} {
+      allow read, write: if true;
+    }
+
+    match /classAttendance/{recordId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // QUESTION BANKS, QUESTIONS & ASSESSMENTS
+    // ----------------------------------------------------
+    match /questionBanks/{bankId} {
+      allow read, write: if true;
+    }
+
+    match /questions/{questionId} {
+      allow read, write: if true;
+    }
+
+    match /assessments/{assessmentId} {
+      allow read, write: if true;
+    }
+
+    match /assessmentAttempts/{attemptId} {
+      allow read, write: if true;
+    }
+
+    match /assessmentSubmissions/{submissionId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // ASSIGNMENTS & FINAL PROJECTS
+    // ----------------------------------------------------
+    match /assignments/{assignmentId} {
+      allow read, write: if true;
+    }
+
+    match /assignmentSubmissions/{submissionId} {
+      allow read, write: if true;
+    }
+
+    match /finalProjectConfigs/{configId} {
+      allow read, write: if true;
+    }
+
+    match /finalProjectSubmissions/{submissionId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // PROGRESS, AT-RISK & M&E INDICATORS
+    // ----------------------------------------------------
+    match /progressRules/{ruleId} {
+      allow read, write: if true;
+    }
+
+    match /learnerProgress/{progressId} {
+      allow read, write: if true;
+    }
+
+    match /atRiskRuleConfigs/{ruleId} {
+      allow read, write: if true;
+    }
+
+    match /atRiskRecords/{recordId} {
+      allow read, write: if true;
+    }
+
+    match /interventions/{interventionId} {
+      allow read, write: if true;
+    }
+
+    match /meIndicatorConfigs/{configId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // CERTIFICATES & FEEDBACK
+    // ----------------------------------------------------
+    match /certificates/{certId} {
+      allow read, write: if true;
+    }
+
+    match /learnerCertificates/{certId} {
+      allow read, write: if true;
+    }
+
+    match /feedbackForms/{formId} {
+      allow read, write: if true;
+    }
+
+    match /feedbackSurveys/{surveyId} {
+      allow read, write: if true;
+    }
+
+    match /feedbackResponses/{responseId} {
+      allow read, write: if true;
+    }
+
+    match /learnerFeedback/{feedbackId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // RESOURCES, NOTIFICATIONS, RECENT ACTIVITY & SETTINGS
+    // ----------------------------------------------------
+    match /courseResources/{resourceId} {
+      allow read, write: if true;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    match /inAppNotifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    match /notificationTemplates/{templateId} {
+      allow read, write: if true;
+    }
+
+    match /notificationLogs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /notificationProviders/{providerId} {
+      allow read, write: if true;
+    }
+
+    match /recentActivity/{activityId} {
+      allow read, write: if true;
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
     match /auditLogs/{logId} {
       allow read, write: if true;
     }
 
-    // Default fallback
+    // ----------------------------------------------------
+    // AI ENGINE AUDIT & DRAFTS
+    // ----------------------------------------------------
+    match /aiAuditLogs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /aiQuestionDrafts/{draftId} {
+      allow read, write: if true;
+    }
+
+    match /aiEscalationTickets/{ticketId} {
+      allow read, write: if true;
+    }
+
+    // ----------------------------------------------------
+    // CATCH-ALL FALLBACK
+    // ----------------------------------------------------
     match /{document=**} {
       allow read, write: if true;
     }

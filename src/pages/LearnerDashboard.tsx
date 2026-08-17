@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+// AI Study Tutor feature commented out
+// import { AIStudyAssistantView } from '../components/ai/AIStudyAssistantView';
+import { AILearnerSupportWidget } from '../components/ai/AILearnerSupportWidget';
 import {
   LearnerProfile,
   Enrolment,
@@ -40,9 +43,22 @@ import {
   LearnerNotification,
   RecentActivityItem,
 } from '../services/learnerPortal';
+import { LearnerProgressPage } from './LearnerProgressPage';
+import { LearnerFinalProjectPage } from './LearnerFinalProjectPage';
+import { submitLearnerAssignment } from '../services/assignments';
+import {
+  subscribeToFeedbackForms,
+  subscribeToFeedbackResponses,
+  submitFeedbackResponse,
+} from '../services/feedback';
+import {
+  FeedbackFormItem,
+  FeedbackResponseSubmission,
+  QuestionResponseItem,
+} from '../types';
 import { subscribeToAssessments, getUserAttempts } from '../services/assessments';
 import { subscribeToLearnerCurriculum } from '../services/curriculum';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { cleanFirestoreData } from '../lib/utils';
 
@@ -112,6 +128,7 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
   const [submittingAssignmentId, setSubmittingAssignmentId] = useState<string | null>(null);
   const [assignmentText, setAssignmentText] = useState<string>('');
   const [assignmentUrl, setAssignmentUrl] = useState<string>('');
+  const [assignmentFileName, setAssignmentFileName] = useState<string>('');
   const [submittingAssignment, setSubmittingAssignment] = useState<boolean>(false);
 
   // Class Filter & Detail Modal
@@ -121,15 +138,23 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
   // Selected Journey Module
   const [selectedJourneyModule, setSelectedJourneyModule] = useState<string | null>(null);
 
-  // Feedback Form State
+  // Module 15 Configurable Feedback Forms State
+  const [configurableForms, setConfigurableForms] = useState<FeedbackFormItem[]>([]);
+  const [learnerSubmissionsList, setLearnerSubmissionsList] = useState<FeedbackResponseSubmission[]>([]);
+  const [selectedFormForCompletion, setSelectedFormForCompletion] = useState<FeedbackFormItem | null>(null);
+  const [formResponsesRecord, setFormResponsesRecord] = useState<
+    Record<string, { ratingValue?: number; textValue?: string; selectedOption?: string }>
+  >({});
+  const [isSubmittingFormResponse, setIsSubmittingFormResponse] = useState<boolean>(false);
+  const [formResponseSuccess, setFormResponseSuccess] = useState<boolean>(false);
+
+  // Quick Feedback state
   const [feedbackRating, setFeedbackRating] = useState<number>(5);
-  const [feedbackCategory, setFeedbackCategory] = useState<'COURSE_CONTENT' | 'INSTRUCTOR' | 'PLATFORM' | 'GENERAL'>('COURSE_CONTENT');
+  const [feedbackCategory, setFeedbackCategory] = useState<string>('INSTRUCTOR');
   const [feedbackComment, setFeedbackComment] = useState<string>('');
+  const [activeFeedbackFormTitle, setActiveFeedbackFormTitle] = useState<string>('General Course Feedback');
   const [submittingFeedback, setSubmittingFeedback] = useState<boolean>(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState<boolean>(false);
-
-  // Active Feedback Form Target
-  const [activeFeedbackFormTitle, setActiveFeedbackFormTitle] = useState<string>('Week 1 Class Feedback');
 
   // Profile Form State
   const [editDisplayName, setEditDisplayName] = useState<string>('');
@@ -147,11 +172,15 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
   const isManagementView = ['Programme Manager', 'Super Admin', 'PROGRAMME_MANAGER', 'SUPER_ADMIN'].includes(activeRole);
 
   // Map URL path to active tab
-  const getTabFromPath = (path: string): 'dashboard' | 'programme' | 'classes' | 'assignments' | 'assessments' | 'resources' | 'progress' | 'feedback' | 'certificate' | 'profile' => {
+  const getTabFromPath = (path: string): 'dashboard' | 'programme' | 'classes' | 'assignments' | 'assessments' | 'project' | 'resources' | 'progress' | 'feedback' | 'certificate' | 'profile' | 'study-assistant' | 'support' => {
+    // AI Study Tutor feature commented out
+    // if (path.includes('/study-assistant') || path.includes('/ai-study')) return 'study-assistant';
+    if (path.includes('/support') || path.includes('/ai-support')) return 'support';
     if (path.includes('/programme')) return 'programme';
     if (path.includes('/classes')) return 'classes';
     if (path.includes('/assignments')) return 'assignments';
     if (path.includes('/assessments')) return 'assessments';
+    if (path.includes('/project') || path.includes('/capstone')) return 'project';
     if (path.includes('/resources')) return 'resources';
     if (path.includes('/progress')) return 'progress';
     if (path.includes('/feedback')) return 'feedback';
@@ -242,6 +271,12 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
     const unsubResources = subscribeToResources(progId, (resList) => setResources(resList));
     const unsubCurriculum = subscribeToLearnerCurriculum(progId, (modList) => setCurriculumModules(modList));
     const unsubFeedback = subscribeToUserFeedback(currentUserUid, (fbList) => setUserFeedback(fbList));
+    const unsubConfigurableForms = subscribeToFeedbackForms(progId, cohId, (fList) => {
+      setConfigurableForms(fList.filter((f) => f.status === 'PUBLISHED'));
+    });
+    const unsubConfigurableResponses = subscribeToFeedbackResponses('ALL', currentUserUid, (rList) => {
+      setLearnerSubmissionsList(rList);
+    });
     const unsubNotifications = subscribeToUserNotifications(currentUserUid, (nList) => setNotifications(nList));
     const unsubActivity = subscribeToUserActivity(currentUserUid, (actList) => setActivityItems(actList));
 
@@ -278,6 +313,8 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
       unsubResources();
       unsubCurriculum();
       unsubFeedback();
+      unsubConfigurableForms();
+      unsubConfigurableResponses();
       unsubNotifications();
       unsubActivity();
       unsubAssessments();
@@ -323,17 +360,29 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
 
     setSubmittingAssignment(true);
     try {
-      await submitAssignment(
-        targetAssignment,
-        activeLearnerProfile?.learnerId || activeEnrolment.learnerId,
-        currentUserUid,
-        currentUserName,
-        currentUserEmail,
-        assignmentText,
-        assignmentUrl
-      );
+      await submitLearnerAssignment({
+        assignment: {
+          ...targetAssignment,
+          programmeId: targetAssignment.programmeId || activeEnrolment.programmeId,
+          programmeName: targetAssignment.programmeName || activeEnrolment.programmeName,
+          dueDate: targetAssignment.dueDate || new Date().toISOString(),
+          totalPoints: targetAssignment.totalPoints || 100,
+          allowResubmission: true,
+          createdBy: 'Facilitator',
+        },
+        learnerId: activeLearnerProfile?.learnerId || activeEnrolment.learnerId,
+        userId: currentUserUid,
+        userName: currentUserName,
+        userEmail: currentUserEmail,
+        submissionText: assignmentText,
+        submissionUrl: assignmentUrl,
+        attachmentName: assignmentFileName || (assignmentUrl ? 'deliverable_link' : ''),
+        attachmentUrl: assignmentUrl,
+        fileSizeBytes: 2450000,
+      });
       setAssignmentText('');
       setAssignmentUrl('');
+      setAssignmentFileName('');
       setSubmittingAssignmentId(null);
     } catch (err) {
       console.error('Error submitting assignment:', err);
@@ -378,19 +427,21 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
     setSavingProfile(true);
     try {
       if (currentUserUid) {
-        await updateDoc(doc(db, 'users', currentUserUid), cleanFirestoreData({
+        await setDoc(doc(db, 'users', currentUserUid), cleanFirestoreData({
+          uid: currentUserUid,
+          id: currentUserUid,
           displayName: editDisplayName,
           phoneNumber: editPhone,
           updatedAt: new Date().toISOString(),
-        }));
+        }), { merge: true });
       }
 
       if (activeLearnerProfile?.id) {
-        await updateDoc(doc(db, 'learners', activeLearnerProfile.id), cleanFirestoreData({
+        await setDoc(doc(db, 'learners', activeLearnerProfile.id), cleanFirestoreData({
           displayName: editDisplayName,
           phoneNumber: editPhone,
           updatedAt: new Date().toISOString(),
-        }));
+        }), { merge: true });
       }
 
       setProfileSaveSuccess(true);
@@ -497,14 +548,18 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
         <div className="hidden md:flex items-center gap-1 mt-6 pt-4 border-t border-slate-800/80 overflow-x-auto">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: <GraduationCap className="w-4 h-4" /> },
+            // AI Study Tutor feature commented out
+            // { id: 'study-assistant', label: '✨ AI Study Tutor', icon: <Sparkles className="w-4 h-4 text-amber-400" /> },
             { id: 'programme', label: 'Programme & Journey', icon: <BookOpen className="w-4 h-4" /> },
             { id: 'classes', label: 'My Classes', icon: <Calendar className="w-4 h-4" /> },
             { id: 'assignments', label: 'Assignments', icon: <ClipboardList className="w-4 h-4" /> },
             { id: 'assessments', label: 'Assessments', icon: <FileCheck className="w-4 h-4" /> },
+            { id: 'project', label: 'Final Capstone', icon: <Sparkles className="w-4 h-4" /> },
             { id: 'resources', label: 'Resources', icon: <BookOpen className="w-4 h-4" /> },
             { id: 'progress', label: 'Progress', icon: <BarChart3 className="w-4 h-4" /> },
             { id: 'feedback', label: 'Feedback', icon: <HelpCircle className="w-4 h-4" /> },
             { id: 'certificate', label: 'Certificate', icon: <Award className="w-4 h-4" /> },
+            { id: 'support', label: '🎧 AI Support', icon: <HelpCircle className="w-4 h-4 text-emerald-400" /> },
             { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
@@ -1050,6 +1105,26 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
             {assignments.map((asgn) => {
               const sub = submissions.find((s) => s.assignmentId === asgn.id);
               const isSubmittingThis = submittingAssignmentId === asgn.id;
+              const isPastDue = new Date().getTime() > new Date(asgn.dueDate).getTime();
+
+              let statusLabel = 'NOT STARTED';
+              let badgeVariant: 'default' | 'success' | 'info' | 'warning' | 'rose' = 'default';
+
+              if (sub) {
+                if (sub.status === 'GRADED') {
+                  statusLabel = 'GRADED';
+                  badgeVariant = 'success';
+                } else if (sub.isLate || sub.status === 'LATE') {
+                  statusLabel = 'SUBMITTED LATE';
+                  badgeVariant = 'warning';
+                } else {
+                  statusLabel = 'SUBMITTED';
+                  badgeVariant = 'info';
+                }
+              } else if (isPastDue) {
+                statusLabel = 'MISSING / OVERDUE';
+                badgeVariant = 'rose';
+              }
 
               return (
                 <Card key={asgn.id} variant="bordered" className="p-6 bg-white space-y-4">
@@ -1059,17 +1134,8 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
                       <h3 className="text-base font-bold text-slate-900">{asgn.title}</h3>
                       <p className="text-xs text-slate-500 mt-1">Due Date: {new Date(asgn.dueDate).toLocaleDateString()}</p>
                     </div>
-                    <Badge
-                      variant={
-                        sub
-                          ? sub.status === 'GRADED'
-                            ? 'success'
-                            : 'info'
-                          : 'default'
-                      }
-                      size="sm"
-                    >
-                      {sub ? sub.status : 'NOT_STARTED'}
+                    <Badge variant={badgeVariant} size="sm">
+                      {statusLabel}
                     </Badge>
                   </div>
 
@@ -1077,23 +1143,111 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
                     {asgn.description}
                   </p>
 
+                  {asgn.instructions && (
+                    <div className="text-[11px] text-slate-600 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                      <strong className="text-blue-900 block mb-0.5">Instructions & Rubric:</strong>
+                      {asgn.instructions}
+                    </div>
+                  )}
+
                   {sub ? (
-                    <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-2 text-xs">
-                      <div className="flex items-center justify-between text-emerald-900 font-bold">
-                        <span>Status: SUBMITTED</span>
-                        {sub.score !== undefined && <span>Score: {sub.score} / {asgn.totalPoints}</span>}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="text-slate-900">Submission Status: <span className="text-orange-600">{statusLabel}</span></span>
+                        {sub.score !== undefined && (
+                          <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                            Score: {sub.score} / {asgn.totalPoints}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-slate-700 italic">"{sub.submissionText}"</p>
-                      {sub.feedback && (
-                        <div className="pt-2 border-t border-emerald-200 text-[11px] text-emerald-900">
-                          <strong>Instructor Feedback:</strong> {sub.feedback}
+
+                      <p className="text-slate-800 bg-white p-2.5 rounded border border-slate-200 italic">
+                        "{sub.submissionText}"
+                      </p>
+
+                      {sub.submissionUrl && (
+                        <div className="pt-1">
+                          <a
+                            href={sub.submissionUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-orange-600 font-bold hover:underline inline-flex items-center gap-1 text-[11px]"
+                          >
+                            🔗 View Project Link: {sub.submissionUrl}
+                          </a>
                         </div>
                       )}
-                      <div className="pt-2 flex gap-2">
-                        <Button variant="outline" size="sm" className="text-xs" onClick={() => setSubmittingAssignmentId(asgn.id)}>
-                          VIEW SUBMISSION / EDIT
-                        </Button>
-                      </div>
+
+                      {sub.attachmentName && (
+                        <div className="text-[11px] text-slate-600 flex items-center gap-1">
+                          📎 Attached File: <strong className="text-slate-800">{sub.attachmentName}</strong>
+                        </div>
+                      )}
+
+                      {sub.feedback && (
+                        <div className="pt-2 border-t border-slate-200 text-xs bg-emerald-50 p-2.5 rounded border border-emerald-200 text-emerald-950">
+                          <strong className="text-emerald-900 block mb-0.5">Instructor Feedback:</strong>
+                          {sub.feedback}
+                        </div>
+                      )}
+
+                      {isSubmittingThis ? (
+                        <form onSubmit={handleAssignmentSubmit} className="space-y-3 pt-2 border-t border-slate-200">
+                          <p className="text-xs font-bold text-slate-900">Resubmit Deliverable for {asgn.title}</p>
+                          <div>
+                            <textarea
+                              required
+                              rows={3}
+                              value={assignmentText}
+                              onChange={(e) => setAssignmentText(e.target.value)}
+                              placeholder="Type updated submission details or explanation..."
+                              className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="url"
+                              value={assignmentUrl}
+                              onChange={(e) => setAssignmentUrl(e.target.value)}
+                              placeholder="Project URL (e.g. GitHub repository, Loom, Google Drive)"
+                              className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              value={assignmentFileName}
+                              onChange={(e) => setAssignmentFileName(e.target.value)}
+                              placeholder="Deliverable File Name (e.g. lab_solution.pdf)"
+                              className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="primary" size="sm" type="submit" disabled={submittingAssignment}>
+                              {submittingAssignment ? 'Saving...' : 'Resubmit Deliverable'}
+                            </Button>
+                            <Button variant="outline" size="sm" type="button" onClick={() => setSubmittingAssignmentId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="pt-2 flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs font-semibold"
+                            onClick={() => {
+                              setSubmittingAssignmentId(asgn.id);
+                              setAssignmentText(sub.submissionText || '');
+                              setAssignmentUrl(sub.submissionUrl || '');
+                              setAssignmentFileName(sub.attachmentName || '');
+                            }}
+                          >
+                            RESUBMIT DELIVERABLE
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : isSubmittingThis ? (
                     <form onSubmit={handleAssignmentSubmit} className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -1104,13 +1258,31 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
                           rows={3}
                           value={assignmentText}
                           onChange={(e) => setAssignmentText(e.target.value)}
-                          placeholder="Type your submission details or code explanation..."
-                          className="w-full text-xs p-2.5 border border-slate-300 rounded-lg"
+                          placeholder="Type submission description, code notes, or project summary..."
+                          className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="url"
+                          value={assignmentUrl}
+                          onChange={(e) => setAssignmentUrl(e.target.value)}
+                          placeholder="Project URL (e.g. GitHub repository, Loom video, Figma, live app)"
+                          className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={assignmentFileName}
+                          onChange={(e) => setAssignmentFileName(e.target.value)}
+                          placeholder="Deliverable File Attachment Name (e.g. assignment_report.pdf)"
+                          className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white"
                         />
                       </div>
                       <div className="flex gap-2">
                         <Button variant="primary" size="sm" type="submit" disabled={submittingAssignment}>
-                          {submittingAssignment ? 'Saving...' : 'Submit'}
+                          {submittingAssignment ? 'Saving...' : 'Submit Deliverable'}
                         </Button>
                         <Button variant="outline" size="sm" type="button" onClick={() => setSubmittingAssignmentId(null)}>
                           Cancel
@@ -1119,8 +1291,8 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
                     </form>
                   ) : (
                     <div className="flex gap-2">
-                      <Button variant="primary" size="sm" className="text-xs" onClick={() => setSubmittingAssignmentId(asgn.id)}>
-                        START
+                      <Button variant="primary" size="sm" className="text-xs font-bold" onClick={() => setSubmittingAssignmentId(asgn.id)}>
+                        START & SUBMIT
                       </Button>
                     </div>
                   )}
@@ -1130,6 +1302,7 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
           </div>
         </div>
       )}
+
 
       {/* VIEW 5: ASSESSMENTS */}
       {activeTab === 'assessments' && (
@@ -1202,115 +1375,419 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
         </div>
       )}
 
+      {/* VIEW 6.5: FINAL CAPSTONE PROJECT */}
+      {activeTab === 'project' && (
+        <LearnerFinalProjectPage
+          learnerId={currentUserUid}
+          learnerName={activeLearnerProfile?.fullName || userProfile?.displayName || 'Active Learner'}
+          learnerEmail={userProfile?.email}
+          programmeId={activeEnrolment?.programmeId}
+          programmeName={activeEnrolment?.programmeName}
+          cohortId={activeEnrolment?.cohortId}
+          cohortName={activeEnrolment?.cohortName}
+          onNavigate={onNavigate}
+        />
+      )}
+
       {/* VIEW 7: PROGRESS */}
       {activeTab === 'progress' && (
-        <div className="space-y-6">
-          <Card variant="bordered" className="p-6 bg-white space-y-6">
-            <h2 className="text-lg font-bold text-slate-900">PROGRAMME PROGRESS BREAKDOWN</h2>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <div className="flex justify-between font-bold text-slate-800 mb-1">
-                  <span>Programme Overall</span>
-                  <span>{overallProgressPercentage}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5">
-                  <div className="bg-orange-600 h-2.5 rounded-full" style={{ width: `${overallProgressPercentage}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-bold text-slate-800 mb-1">
-                  <span>Attendance Progress</span>
-                  <span>{attendanceRatePercentage}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5">
-                  <div className="bg-emerald-600 h-2.5 rounded-full" style={{ width: `${attendanceRatePercentage}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-bold text-slate-800 mb-1">
-                  <span>Assignments Progress</span>
-                  <span>{Math.round((submittedAssignmentsCount / totalAssignmentsCount) * 100)}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5">
-                  <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(submittedAssignmentsCount / totalAssignmentsCount) * 100}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-bold text-slate-800 mb-1">
-                  <span>Assessments Progress</span>
-                  <span>{Math.round((passedAssessmentsCount / totalAssessmentsCount) * 100)}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5">
-                  <div className="bg-purple-600 h-2.5 rounded-full" style={{ width: `${(passedAssessmentsCount / totalAssessmentsCount) * 100}%` }} />
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
+        <LearnerProgressPage
+          learnerId={currentUserUid}
+          learnerName={activeLearnerProfile?.fullName || userProfile?.displayName || 'Active Learner'}
+          learnerEmail={userProfile?.email}
+          programmeId={activeEnrolment?.programmeId}
+          programmeName={activeEnrolment?.programmeName}
+          cohortId={activeEnrolment?.cohortId}
+          cohortName={activeEnrolment?.cohortName}
+          onNavigate={onNavigate}
+        />
       )}
 
       {/* VIEW 8: FEEDBACK */}
       {activeTab === 'feedback' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card variant="bordered" className="p-6 bg-white space-y-4">
-              <h2 className="text-base font-bold text-slate-900">Available Feedback Forms</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Col: Forms List */}
+            <Card variant="bordered" className="p-5 bg-white space-y-4 lg:col-span-1">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-orange-600" /> Active Feedback Surveys
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Complete required surveys to share your class, instructor, and learning experience feedback.
+                </p>
+              </div>
 
-              {[
-                'Week 1 Class Feedback',
-                'Week 2 Class Feedback',
-                'Mid-Programme Feedback',
-                'Programme Completion Feedback',
-              ].map((formTitle) => {
-                const submitted = userFeedback.some((f) => f.comment.includes(formTitle));
-                return (
-                  <div key={formTitle} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                    <div>
-                      <p className="font-bold text-slate-800">{formTitle}</p>
-                      <p className="text-[10px] text-slate-500">Status: {submitted ? 'Completed' : 'Not Started'}</p>
-                    </div>
-                    <Button
-                      variant={submitted ? 'outline' : 'primary'}
-                      size="sm"
-                      onClick={() => {
-                        setActiveFeedbackFormTitle(formTitle);
-                      }}
-                    >
-                      {submitted ? 'Completed' : 'Give Feedback'}
-                    </Button>
-                  </div>
-                );
-              })}
-            </Card>
+              {configurableForms.length === 0 ? (
+                <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-500">
+                  No active feedback forms available for your programme at this time.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {configurableForms.map((form) => {
+                    const isSubmitted = learnerSubmissionsList.some((s) => s.formId === form.id);
+                    const isSelected = selectedFormForCompletion?.id === form.id;
 
-            <Card variant="bordered" className="p-6 bg-white space-y-4">
-              <h3 className="text-base font-bold text-slate-900">Submit Feedback for {activeFeedbackFormTitle}</h3>
-              {feedbackSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs">
-                  Feedback saved!
+                    return (
+                      <div
+                        key={form.id}
+                        onClick={() => {
+                          setSelectedFormForCompletion(form);
+                          setFormResponseSuccess(false);
+                          // initialize default state
+                          const initial: Record<string, { ratingValue?: number; textValue?: string; selectedOption?: string }> = {};
+                          (form.questions || []).forEach((q) => {
+                            initial[q.id] = {
+                              ratingValue: 5,
+                              textValue: '',
+                              selectedOption: q.options?.[0] || '',
+                            };
+                          });
+                          setFormResponsesRecord(initial);
+                        }}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
+                          isSelected
+                            ? 'bg-orange-50/80 border-orange-300 ring-2 ring-orange-400/20 shadow-xs'
+                            : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Badge variant={isSubmitted ? 'success' : 'orange'} size="sm">
+                            {isSubmitted ? '✓ COMPLETED' : 'ACTION REQUIRED'}
+                          </Badge>
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            {form.questions?.length || 0} Questions
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-xs">{form.title}</h4>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{form.description}</p>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-600 pt-1 border-t border-slate-200/80">
+                          <span>{form.programmeName}</span>
+                          <span className="font-bold text-orange-600">
+                            {isSelected ? 'Currently Viewing' : 'Select Survey →'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-              <form onSubmit={handleFeedbackSubmit} className="space-y-3">
-                <textarea
-                  required
-                  rows={4}
-                  value={feedbackComment}
-                  onChange={(e) => setFeedbackComment(e.target.value)}
-                  placeholder="Your feedback..."
-                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg"
-                />
-                <Button variant="primary" size="sm" type="submit" disabled={submittingFeedback}>
-                  Submit Feedback
-                </Button>
-              </form>
+            </Card>
+
+            {/* Right Col: Interactive Survey Questionnaire */}
+            <Card variant="bordered" className="p-6 bg-white space-y-5 lg:col-span-2">
+              {!selectedFormForCompletion ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mx-auto">
+                    <HelpCircle className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base">Select a Feedback Form</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Choose an active survey from the list on the left to share your class experience, instructor ratings, and module suggestions.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <div className="border-b border-slate-200 pb-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-slate-900">{selectedFormForCompletion.title}</h3>
+                      {learnerSubmissionsList.some((s) => s.formId === selectedFormForCompletion.id) && (
+                        <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Submitted & Saved
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{selectedFormForCompletion.description}</p>
+                  </div>
+
+                  {formResponseSuccess && (
+                    <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      Thank you! Your feedback submission has been recorded and dispatched to the programme management team.
+                    </div>
+                  )}
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setIsSubmittingFormResponse(true);
+                      setFormResponseSuccess(false);
+
+                      try {
+                        const questionResponses: QuestionResponseItem[] = (selectedFormForCompletion.questions || []).map((q) => {
+                          const ans = formResponsesRecord[q.id] || {};
+                          return {
+                            questionId: q.id,
+                            questionText: q.questionText,
+                            questionType: q.questionType,
+                            ratingValue: ans.ratingValue || 5,
+                            textValue: ans.textValue || '',
+                            selectedOption: ans.selectedOption || '',
+                          };
+                        });
+
+                        await submitFeedbackResponse({
+                          form: selectedFormForCompletion,
+                          learnerId: currentUserUid,
+                          userId: currentUserUid,
+                          userName: currentUserName,
+                          userEmail: currentUserEmail,
+                          responses: questionResponses,
+                        });
+
+                        setFormResponseSuccess(true);
+                      } catch (err) {
+                        console.error('Error submitting feedback response:', err);
+                      } finally {
+                        setIsSubmittingFormResponse(false);
+                      }
+                    }}
+                    className="space-y-6"
+                  >
+                    {(selectedFormForCompletion.questions || []).map((q, idx) => {
+                      const currentAns = formResponsesRecord[q.id] || { ratingValue: 5, textValue: '', selectedOption: '' };
+
+                      return (
+                        <div key={q.id} className="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <label className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">
+                                {idx + 1}
+                              </span>
+                              {q.questionText}
+                              {q.required && <span className="text-rose-500">*</span>}
+                            </label>
+                          </div>
+
+                          {/* RATING (1-5 Stars) */}
+                          {q.questionType === 'rating' && (
+                            <div className="flex items-center gap-2 pt-1">
+                              {[1, 2, 3, 4, 5].map((starVal) => (
+                                <button
+                                  type="button"
+                                  key={starVal}
+                                  onClick={() =>
+                                    setFormResponsesRecord({
+                                      ...formResponsesRecord,
+                                      [q.id]: { ...currentAns, ratingValue: starVal },
+                                    })
+                                  }
+                                  className={`p-2 rounded-lg transition-all cursor-pointer ${
+                                    (currentAns.ratingValue || 5) >= starVal
+                                      ? 'text-amber-500 bg-amber-50 border border-amber-200'
+                                      : 'text-slate-300 bg-white border border-slate-200'
+                                  }`}
+                                >
+                                  <Star className={`w-5 h-5 ${(currentAns.ratingValue || 5) >= starVal ? 'fill-amber-400' : ''}`} />
+                                </button>
+                              ))}
+                              <span className="text-xs font-bold text-slate-700 ml-2">
+                                {currentAns.ratingValue || 5} / 5 Stars
+                              </span>
+                            </div>
+                          )}
+
+                          {/* SATISFACTION LIKERT SCALE */}
+                          {q.questionType === 'satisfaction' && (
+                            <div className="grid grid-cols-5 gap-2 pt-1">
+                              {[
+                                { val: 1, label: '1 - Very Unsatisfied' },
+                                { val: 2, label: '2 - Unsatisfied' },
+                                { val: 3, label: '3 - Neutral' },
+                                { val: 4, label: '4 - Satisfied' },
+                                { val: 5, label: '5 - Very Satisfied' },
+                              ].map((opt) => (
+                                <button
+                                  type="button"
+                                  key={opt.val}
+                                  onClick={() =>
+                                    setFormResponsesRecord({
+                                      ...formResponsesRecord,
+                                      [q.id]: { ...currentAns, ratingValue: opt.val },
+                                    })
+                                  }
+                                  className={`p-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer text-center ${
+                                    currentAns.ratingValue === opt.val
+                                      ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
+                                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* INSTRUCTOR FEEDBACK */}
+                          {q.questionType === 'instructor_feedback' && (
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-slate-600">Rating:</span>
+                                {[1, 2, 3, 4, 5].map((starVal) => (
+                                  <button
+                                    type="button"
+                                    key={starVal}
+                                    onClick={() =>
+                                      setFormResponsesRecord({
+                                        ...formResponsesRecord,
+                                        [q.id]: { ...currentAns, ratingValue: starVal },
+                                      })
+                                    }
+                                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                                      (currentAns.ratingValue || 5) >= starVal
+                                        ? 'text-amber-500'
+                                        : 'text-slate-300'
+                                    }`}
+                                  >
+                                    <Star className={`w-4 h-4 ${(currentAns.ratingValue || 5) >= starVal ? 'fill-amber-400' : ''}`} />
+                                  </button>
+                                ))}
+                              </div>
+                              <textarea
+                                rows={2}
+                                className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                placeholder={q.placeholder || 'Share feedback regarding explanation clarity, pacing, and support...'}
+                                value={currentAns.textValue || ''}
+                                onChange={(e) =>
+                                  setFormResponsesRecord({
+                                    ...formResponsesRecord,
+                                    [q.id]: { ...currentAns, textValue: e.target.value },
+                                  })
+                                }
+                              />
+                            </div>
+                          )}
+
+                          {/* CLASS CONTENT FEEDBACK */}
+                          {q.questionType === 'class_feedback' && (
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-slate-600">Material Quality Rating:</span>
+                                {[1, 2, 3, 4, 5].map((starVal) => (
+                                  <button
+                                    type="button"
+                                    key={starVal}
+                                    onClick={() =>
+                                      setFormResponsesRecord({
+                                        ...formResponsesRecord,
+                                        [q.id]: { ...currentAns, ratingValue: starVal },
+                                      })
+                                    }
+                                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                                      (currentAns.ratingValue || 5) >= starVal
+                                        ? 'text-amber-500'
+                                        : 'text-slate-300'
+                                    }`}
+                                  >
+                                    <Star className={`w-4 h-4 ${(currentAns.ratingValue || 5) >= starVal ? 'fill-amber-400' : ''}`} />
+                                  </button>
+                                ))}
+                              </div>
+                              <textarea
+                                rows={2}
+                                className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                placeholder={q.placeholder || 'Comments regarding code notebooks, slides, or lab exercises...'}
+                                value={currentAns.textValue || ''}
+                                onChange={(e) =>
+                                  setFormResponsesRecord({
+                                    ...formResponsesRecord,
+                                    [q.id]: { ...currentAns, textValue: e.target.value },
+                                  })
+                                }
+                              />
+                            </div>
+                          )}
+
+                          {/* CONFIDENCE & UNDERSTANDING SCALES */}
+                          {(q.questionType === 'confidence' || q.questionType === 'understanding') && (
+                            <div className="space-y-2 pt-1">
+                              <div className="grid grid-cols-5 gap-2">
+                                {[1, 2, 3, 4, 5].map((num) => (
+                                  <button
+                                    type="button"
+                                    key={num}
+                                    onClick={() =>
+                                      setFormResponsesRecord({
+                                        ...formResponsesRecord,
+                                        [q.id]: { ...currentAns, ratingValue: num },
+                                      })
+                                    }
+                                    className={`p-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                                      (currentAns.ratingValue || 5) === num
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Level {num}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* MULTIPLE CHOICE */}
+                          {q.questionType === 'multiple_choice' && (
+                            <div className="space-y-1.5 pt-1">
+                              {(q.options || ['Option 1', 'Option 2']).map((optStr) => (
+                                <label key={optStr} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 text-xs">
+                                  <input
+                                    type="radio"
+                                    name={`mc_${q.id}`}
+                                    checked={currentAns.selectedOption === optStr}
+                                    onChange={() =>
+                                      setFormResponsesRecord({
+                                        ...formResponsesRecord,
+                                        [q.id]: { ...currentAns, selectedOption: optStr },
+                                      })
+                                    }
+                                    className="text-orange-600 focus:ring-orange-500 h-3.5 w-3.5"
+                                  />
+                                  <span className="font-medium text-slate-800">{optStr}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* OPEN TEXT / SUGGESTIONS */}
+                          {(q.questionType === 'text' || q.questionType === 'suggestions') && (
+                            <textarea
+                              rows={3}
+                              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                              placeholder={q.placeholder || 'Type your comments or suggestions here...'}
+                              value={currentAns.textValue || ''}
+                              onChange={(e) =>
+                                setFormResponsesRecord({
+                                  ...formResponsesRecord,
+                                  [q.id]: { ...currentAns, textValue: e.target.value },
+                                })
+                              }
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      disabled={isSubmittingFormResponse}
+                      className="font-bold shadow-xs w-full py-2.5"
+                    >
+                      {isSubmittingFormResponse ? 'Submitting Feedback...' : 'Submit Learner Feedback Survey'}
+                    </Button>
+                  </form>
+                </div>
+              )}
             </Card>
           </div>
         </div>
       )}
+
 
       {/* VIEW 9: CERTIFICATE */}
       {activeTab === 'certificate' && (
@@ -1374,6 +1851,35 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({ currentPath 
             </form>
           </Card>
         </div>
+      )}
+
+      {/* VIEW: AI STUDY ASSISTANT (Commented out) */}
+      {/* activeTab === 'study-assistant' && (
+        <AIStudyAssistantView
+          programmeName={activeEnrolment?.programmeName || 'NextGen Programme'}
+          cohortName={activeEnrolment?.cohortName || 'Active Cohort'}
+          programmeId={activeEnrolment?.programmeId || 'DEFAULT_PROG'}
+        />
+      ) */}
+
+      {/* VIEW: AI LEARNER SUPPORT */}
+      {activeTab === 'support' && (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <AILearnerSupportWidget
+            isFloating={false}
+            programmeName={activeEnrolment?.programmeName || 'NextGen Programme'}
+            cohortName={activeEnrolment?.cohortName || 'Active Cohort'}
+          />
+        </div>
+      )}
+
+      {/* FLOATING 24/7 AI SUPPORT WIDGET ACCESSIBLE ACROSS ALL TABS */}
+      {activeTab !== 'support' && (
+        <AILearnerSupportWidget
+          isFloating={true}
+          programmeName={activeEnrolment?.programmeName || 'NextGen Programme'}
+          cohortName={activeEnrolment?.cohortName || 'Active Cohort'}
+        />
       )}
 
       {/* CLASS DETAIL MODAL */}

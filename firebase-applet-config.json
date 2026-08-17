@@ -1,12 +1,12 @@
 {
-  "projectId": "crested-chord-5xctm",
-  "appId": "1:9670534779:web:a56aad4f962323f67b24de",
-  "apiKey": "AIzaSyC_eHRft80zU4Wp-6w4rCGaGMIf6TOQtzY",
-  "authDomain": "crested-chord-5xctm.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-21e06f05-11cd-4c41-bd8e-21a07481f8fe",
-  "storageBucket": "crested-chord-5xctm.firebasestorage.app",
-  "messagingSenderId": "9670534779",
-  "measurementId": "",
-  "oAuthClientId": "9670534779-ss2ncchd9oecg1mf4l7msd7l58985trv.apps.googleusercontent.com",
+  "projectId": "nextgen-academy-class",
+  "appId": "1:125834319981:web:c04461a93242295fdcc764",
+  "apiKey": "AIzaSyAhsvp6ncLFecU01ZV24X6TOn82AZGdk3A",
+  "authDomain": "nextgen-academy-class.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "nextgen-academy-class.firebasestorage.app",
+  "messagingSenderId": "125834319981",
+  "measurementId": "G-ZXSSM1DNHH",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

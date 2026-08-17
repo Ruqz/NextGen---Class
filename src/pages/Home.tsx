@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { useAuth } from '../context/AuthContext';
 import {
   Sparkles,
   ArrowRight,
@@ -23,8 +22,6 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
-  const { demoLoginAs } = useAuth();
-
   return (
     <div className="space-y-12">
       {/* Platform Hero */}
@@ -32,7 +29,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 max-w-3xl space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> NextGen PRO Platform Architecture
+            <Sparkles className="w-3.5 h-3.5" /> NextGen Class Platform Architecture
           </div>
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
             Education & Skills Development <span className="text-orange-500">Empowerment Engine</span>
@@ -186,7 +183,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
             Multi-Programme & Multi-Cohort Support
           </h2>
           <p className="text-xs text-slate-600">
-            NextGen PRO supports adding future skills initiatives seamlessly without code modifications.
+            NextGen Class supports adding future skills initiatives seamlessly without code modifications.
           </p>
         </div>
 
@@ -226,40 +223,31 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Role Playground Entry Points */}
-      <section className="bg-slate-900 text-white p-8 rounded-2xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-bold">Role-Based Platform Testing</h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Select any stakeholder persona to test security boundaries and access permissions.
-            </p>
-          </div>
+      {/* Admission & Onboarding CTA */}
+      <section className="bg-gradient-to-br from-slate-900 to-slate-950 text-white p-8 md:p-10 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="space-y-2 text-center md:text-left">
+          <h3 className="text-xl font-bold text-white">Ready to join NextGen Class?</h3>
+          <p className="text-xs text-slate-400 max-w-xl">
+            Start your application for active cohorts, or sign in to your learner workspace to access coursework and live sessions.
+          </p>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { role: 'Applicant' as const, desc: 'Apply & Qualification' },
-            { role: 'Learner' as const, desc: 'Classes & Submissions' },
-            { role: 'Facilitator' as const, desc: 'Grading & Attendance' },
-            { role: 'Programme Manager' as const, desc: 'Cohort Administration' },
-            { role: 'M&E Manager' as const, desc: 'Outcome Indicators' },
-            { role: 'Super Admin' as const, desc: 'Platform Audit & Users' },
-          ].map((item) => (
-            <button
-              key={item.role}
-              onClick={() => {
-                demoLoginAs(item.role);
-                onNavigate('/portal');
-              }}
-              className="p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-left transition-all group cursor-pointer"
-            >
-              <Badge variant="role" roleName={item.role} size="sm" />
-              <p className="text-[11px] text-slate-400 mt-2 group-hover:text-white transition-colors">
-                {item.desc}
-              </p>
-            </button>
-          ))}
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
+            variant="outline"
+            size="md"
+            className="text-white border-slate-700 hover:bg-slate-800"
+            onClick={() => onNavigate('/auth?mode=login')}
+          >
+            Sign In
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            rightIcon={<ArrowRight className="w-4 h-4" />}
+            onClick={() => onNavigate('/auth?mode=register')}
+          >
+            Apply Now
+          </Button>
         </div>
       </section>
     </div>

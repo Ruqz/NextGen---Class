@@ -103,7 +103,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       const file = files[i];
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
 
-      if (config.allowedTypes.length > 0 && !config.allowedTypes.map(t => t.toLowerCase()).includes(ext)) {
+      if (config.allowedTypes && config.allowedTypes.length > 0 && !config.allowedTypes.map(t => t.toLowerCase()).includes(ext)) {
         setError(`File "${file.name}" type is not allowed. Allowed types: ${config.allowedTypes.join(', ')}`);
         return;
       }
