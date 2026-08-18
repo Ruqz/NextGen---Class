@@ -160,14 +160,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return '/unauthorized?reason=suspended';
     }
 
-    const type: AccountType = prof.accountType || (
-      prof.role === 'Applicant' ? 'APPLICANT' :
-      prof.role === 'Learner' ? 'LEARNER' : 'STAFF'
-    );
+    const roleLower = (prof.role || '').toLowerCase();
+    const isStaff =
+      prof.accountType === 'STAFF' ||
+      roleLower.includes('facilitator') ||
+      roleLower.includes('programme') ||
+      roleLower.includes('manager') ||
+      roleLower.includes('admin') ||
+      roleLower.includes('super');
 
-    if (type === 'APPLICANT') return '/applicant/dashboard';
-    if (type === 'LEARNER') return '/learner/dashboard';
-    if (type === 'STAFF') return '/staff/dashboard';
+    const isLearner =
+      prof.accountType === 'LEARNER' ||
+      roleLower === 'learner';
+
+    const isApplicant =
+      prof.accountType === 'APPLICANT' ||
+      roleLower === 'applicant';
+
+    // 1. Applicant Portal
+    if (isApplicant) {
+      return '/applicant/dashboard';
+    }
+
+    // 2. Learner Portal
+    if (isLearner) {
+      return '/learner/dashboard';
+    }
+
+    // 3. Staff Portal (Programme Manager & Facilitator)
+    if (isStaff) {
+      return '/staff/dashboard';
+    }
 
     return '/learner/dashboard';
   };
@@ -234,20 +257,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ) {
         console.warn('Firebase Auth API key or Email/Password is restricted/disabled. Using seamless local authenticated session.');
         const cleanEmail = cleanInput.includes('@') ? cleanInput : `${cleanInput.toLowerCase()}@learner.nextgenclass.org`;
-        const isLearner = !cleanInput.includes('@') || cleanInput.toUpperCase().startsWith('NGP-') || cleanInput.toUpperCase().startsWith('LRN-');
+        const emailLower = cleanEmail.toLowerCase();
+
+        const isMasterStaff =
+          emailLower.includes('staff') ||
+          emailLower.includes('pm') ||
+          emailLower.includes('admin') ||
+          emailLower.includes('manager') ||
+          emailLower === 'horlahidey25@gmail.com';
+
+        const isMasterFacil =
+          emailLower.includes('facilitator') ||
+          emailLower.includes('instructor') ||
+          emailLower.includes('tutor');
+
+        const isLearner = !cleanInput.includes('@') || cleanInput.toUpperCase().startsWith('NGP-') || cleanInput.toUpperCase().startsWith('LRN-') || emailLower.includes('learner');
+
+        let fallbackRole: UserRole = 'Applicant';
+        let fallbackAccountType: AccountType = 'APPLICANT';
+        let fallbackStaffRole: StaffRole | null = null;
+
+        if (isMasterFacil) {
+          fallbackRole = 'Facilitator';
+          fallbackAccountType = 'STAFF';
+          fallbackStaffRole = 'FACILITATOR';
+        } else if (isMasterStaff) {
+          fallbackRole = 'Programme Manager';
+          fallbackAccountType = 'STAFF';
+          fallbackStaffRole = 'PROGRAMME_MANAGER';
+        } else if (isLearner) {
+          fallbackRole = 'Learner';
+          fallbackAccountType = 'LEARNER';
+        }
+
         const fallbackProfile: UserProfile = {
           uid: `user-${cleanEmail.replace(/[^a-z0-9]/gi, '')}`,
           email: cleanEmail,
           displayName: cleanEmail.split('@')[0] || 'User',
           firstName: cleanEmail.split('@')[0] || 'User',
-          lastName: 'Member',
-          role: isLearner ? 'Learner' : 'Applicant',
-          accountType: isLearner ? 'LEARNER' : 'APPLICANT',
+          lastName: fallbackAccountType === 'STAFF' ? 'Staff' : 'Member',
+          role: fallbackRole,
+          accountType: fallbackAccountType,
           accountStatus: 'ACTIVE',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         setDoc(doc(db, 'users', fallbackProfile.uid), fallbackProfile, { merge: true }).catch(() => {});
+        if (fallbackAccountType === 'STAFF' && fallbackStaffRole) {
+          ensureStaffProfile(fallbackProfile.uid, fallbackStaffRole).catch(() => {});
+          setStaffRole(fallbackStaffRole);
+        }
         setCurrentUser({
           uid: fallbackProfile.uid,
           email: fallbackProfile.email,

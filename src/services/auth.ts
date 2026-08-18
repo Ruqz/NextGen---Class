@@ -184,13 +184,20 @@ export const syncUserProfile = async (
   const userRef = doc(db, 'users', user.uid);
   const existingProfile = await getUserProfile(user.uid);
 
+  const emailLower = user.email?.toLowerCase() || '';
   const isMasterStaffEmail =
-    user.email?.toLowerCase() === MASTER_STAFF_CREDENTIALS.email.toLowerCase() ||
-    user.email?.toLowerCase() === 'admin@nextgenclass.org' ||
-    user.email?.toLowerCase() === 'horlahidey25@gmail.com';
+    emailLower === MASTER_STAFF_CREDENTIALS.email.toLowerCase() ||
+    emailLower === 'staff@nextgenclass.org' ||
+    emailLower === 'pm@nextgenclass.org' ||
+    emailLower === 'admin@nextgenclass.org' ||
+    emailLower === 'program.manager@nextgenclass.org' ||
+    emailLower === 'horlahidey25@gmail.com';
 
   const isMasterFacilitatorEmail =
-    user.email?.toLowerCase() === MASTER_FACILITATOR_CREDENTIALS.email.toLowerCase();
+    emailLower === MASTER_FACILITATOR_CREDENTIALS.email.toLowerCase() ||
+    emailLower === 'facilitator@nextgenclass.org' ||
+    emailLower === 'instructor@nextgenclass.org' ||
+    emailLower === 'tutor@nextgenclass.org';
 
   let effectiveRole: UserRole = defaultRole;
   if (isMasterStaffEmail) {
@@ -357,11 +364,19 @@ export const loginWithEmail = async (email: string, pass: string): Promise<UserP
     return profile;
   } catch (err: any) {
     // If master staff credentials used but not yet created in Firebase Auth, auto-provision
+    const emailLower = normalizedEmail.toLowerCase();
     const isMasterStaff =
-      normalizedEmail.toLowerCase() === MASTER_STAFF_CREDENTIALS.email.toLowerCase() ||
-      normalizedEmail.toLowerCase() === 'admin@nextgenclass.org';
+      emailLower === MASTER_STAFF_CREDENTIALS.email.toLowerCase() ||
+      emailLower === 'staff@nextgenclass.org' ||
+      emailLower === 'pm@nextgenclass.org' ||
+      emailLower === 'admin@nextgenclass.org' ||
+      emailLower === 'program.manager@nextgenclass.org' ||
+      emailLower === 'horlahidey25@gmail.com';
     const isMasterFacilitator =
-      normalizedEmail.toLowerCase() === MASTER_FACILITATOR_CREDENTIALS.email.toLowerCase();
+      emailLower === MASTER_FACILITATOR_CREDENTIALS.email.toLowerCase() ||
+      emailLower === 'facilitator@nextgenclass.org' ||
+      emailLower === 'instructor@nextgenclass.org' ||
+      emailLower === 'tutor@nextgenclass.org';
 
     if ((isMasterStaff || isMasterFacilitator) && (err?.code === 'auth/user-not-found' || err?.code === 'auth/invalid-credential' || err?.code === 'auth/invalid-login-credentials')) {
       try {

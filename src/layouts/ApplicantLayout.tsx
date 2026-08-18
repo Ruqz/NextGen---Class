@@ -36,7 +36,7 @@ export const ApplicantLayout: React.FC<ApplicantLayoutProps> = ({
 
   const navItems = [
     { label: 'DASHBOARD', path: '/applicant/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { label: 'MY APPLICATION', path: '/applicant/application', icon: <FileText className="w-4 h-4" /> },
+    { label: 'APPLY TO A PROGRAM', path: '/applicant/application', icon: <FileText className="w-4 h-4" /> },
     { label: 'ASSESSMENT', path: '/applicant/assessment', icon: <ClipboardList className="w-4 h-4" />, badge: 'Required' },
     { label: 'ASSESSMENT RESOURCES', path: '/applicant/assessment-resources', icon: <BookOpen className="w-4 h-4" /> },
     { label: 'ASSESSMENT RESULT', path: '/applicant/assessment-result', icon: <CheckCircle2 className="w-4 h-4" /> },

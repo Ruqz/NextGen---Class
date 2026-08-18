@@ -257,24 +257,35 @@ export const ApplicantStatusTracker: React.FC<ApplicantStatusTrackerProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            id="btn-applicant-apply-now"
+            onClick={() => onNavigate('/applicant/application')}
+            className="bg-orange-600 hover:bg-orange-500 text-white font-bold cursor-pointer shadow-xs"
+          >
+            <FileText className="w-4 h-4 mr-1.5" /> Apply to a Programme
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
+            id="btn-applicant-explore-catalog"
             onClick={() => {
               setActiveTab('catalog');
             }}
           >
-            <GraduationCap className="w-4 h-4 mr-1.5" /> Explore Programmes
+            <GraduationCap className="w-4 h-4 mr-1.5" /> Browse Catalog
           </Button>
 
           {applications.length === 0 && (
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
               isLoading={seedingDemo}
               onClick={handleSeedDemoApplication}
-              className="bg-orange-600 hover:bg-orange-500 text-white"
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
             >
               <Sparkles className="w-4 h-4 mr-1.5" /> Generate Test Application
             </Button>
@@ -425,14 +436,29 @@ export const ApplicantStatusTracker: React.FC<ApplicantStatusTrackerProps> = ({
               description="You haven't submitted any cohort applications yet. You can explore available programmes or generate a sample application to test the admissions flow."
               action={
                 <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-                  <Button variant="primary" size="sm" onClick={() => setActiveTab('catalog')}>
-                    <BookOpen className="w-4 h-4 mr-1.5" /> Browse Open Cohorts & Apply
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    id="btn-empty-apply-now"
+                    onClick={() => onNavigate('/applicant/application')}
+                    className="bg-orange-600 hover:bg-orange-500 text-white font-bold cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 mr-1.5" /> Apply to a Programme
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    id="btn-empty-browse-cohorts"
+                    onClick={() => setActiveTab('catalog')}
+                  >
+                    <BookOpen className="w-4 h-4 mr-1.5" /> Browse Open Cohorts
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     isLoading={seedingDemo}
                     onClick={handleSeedDemoApplication}
+                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
                   >
                     <Sparkles className="w-4 h-4 mr-1.5" /> Generate Test Application
                   </Button>

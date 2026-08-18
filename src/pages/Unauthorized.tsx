@@ -10,13 +10,11 @@ interface UnauthorizedProps {
 }
 
 export const Unauthorized: React.FC<UnauthorizedProps> = ({ onNavigate, customMessage }) => {
-  const { accountType, logout } = useAuth();
+  const { userProfile, getPostLoginPath, logout } = useAuth();
 
   const handleReturnToPortal = () => {
-    if (accountType === 'APPLICANT') onNavigate('/applicant/dashboard');
-    else if (accountType === 'LEARNER') onNavigate('/learner/dashboard');
-    else if (accountType === 'STAFF') onNavigate('/staff/dashboard');
-    else onNavigate('/');
+    const target = getPostLoginPath(userProfile);
+    onNavigate(target || '/');
   };
 
   return (
@@ -46,7 +44,7 @@ export const Unauthorized: React.FC<UnauthorizedProps> = ({ onNavigate, customMe
             leftIcon={<LogIn className="w-4 h-4" />}
             onClick={async () => {
               await logout();
-              onNavigate('/login/applicant');
+              onNavigate('/');
             }}
             className="w-full justify-center bg-white text-slate-700 hover:bg-slate-100"
           >

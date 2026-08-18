@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import {
   Shield,
   Lock,
@@ -15,8 +14,11 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { MASTER_STAFF_CREDENTIALS, MASTER_FACILITATOR_CREDENTIALS } from '../services/auth';
 
-export const StaffLoginPage: React.FC = () => {
-  const navigate = useNavigate();
+interface StaffLoginPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+export const StaffLoginPage: React.FC<StaffLoginPageProps> = ({ onNavigate }) => {
   const { login, getPostLoginPath } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -24,6 +26,15 @@ export const StaffLoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const navigateTo = (path: string) => {
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      window.history.pushState({}, '', path);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  };
 
   const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +49,7 @@ export const StaffLoginPage: React.FC = () => {
     try {
       const profile = await login(email.trim(), password);
       const postLoginUrl = getPostLoginPath(profile);
-      navigate(postLoginUrl || '/staff/dashboard');
+      navigateTo(postLoginUrl || '/staff/dashboard');
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify your staff credentials.');
     } finally {
@@ -67,14 +78,15 @@ export const StaffLoginPage: React.FC = () => {
 
       {/* Top Bar */}
       <header className="w-full border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md px-6 py-4 flex items-center justify-between">
-        <Link
-          to="/"
+        <button
+          type="button"
+          onClick={() => navigateTo('/')}
           id="btn-return-learner"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Return to Learner Portal</span>
-        </Link>
+        </button>
 
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -193,19 +205,21 @@ export const StaffLoginPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  id="btn-quick-fill-pm"
                   onClick={() => handleQuickFill('pm')}
-                  className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-left text-xs transition-colors group"
+                  className="px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-left text-xs transition-colors group cursor-pointer"
                 >
                   <p className="font-medium text-slate-200 group-hover:text-indigo-300">Program Manager</p>
-                  <p className="text-[10px] text-slate-400 truncate">staff@nextgenclass.org</p>
+                  <p className="text-[10px] text-slate-400 truncate">{MASTER_STAFF_CREDENTIALS.email}</p>
                 </button>
                 <button
                   type="button"
+                  id="btn-quick-fill-facilitator"
                   onClick={() => handleQuickFill('facilitator')}
-                  className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-left text-xs transition-colors group"
+                  className="px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-left text-xs transition-colors group cursor-pointer"
                 >
                   <p className="font-medium text-slate-200 group-hover:text-indigo-300">Facilitator</p>
-                  <p className="text-[10px] text-slate-400 truncate">facilitator@nextgenclass.org</p>
+                  <p className="text-[10px] text-slate-400 truncate">{MASTER_FACILITATOR_CREDENTIALS.email}</p>
                 </button>
               </div>
             </div>

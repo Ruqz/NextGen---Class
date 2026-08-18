@@ -96,7 +96,7 @@ export const AppRoutes: React.FC = () => {
   // If user is not authenticated:
   if (!currentUser || !userProfile) {
     if (currentPath === '/staff/login' || currentPath === '/staff-login') {
-      return <StaffLoginPage />;
+      return <StaffLoginPage onNavigate={navigate} />;
     }
     if (currentPath === '/apply' || currentPath.startsWith('/apply')) {
       const cohortId = currentPath.split('/apply/')[1]?.split('?')[0] || undefined;
@@ -116,24 +116,32 @@ export const AppRoutes: React.FC = () => {
   }
 
   // 4. USER PORTAL DETERMINATION
-  const userAccountType: AccountType =
-    userProfile.accountType ||
-    (userProfile.role === 'Applicant'
-      ? 'APPLICANT'
-      : userProfile.role === 'Learner'
-      ? 'LEARNER'
-      : 'STAFF');
-
+  const roleLower = (userProfile.role || '').toLowerCase();
   const isFacilitator =
     staffRole === 'FACILITATOR' ||
     (activeRole && activeRole.toLowerCase().includes('facilitator')) ||
-    (userProfile.role && userProfile.role.toLowerCase().includes('facilitator'));
+    roleLower.includes('facilitator');
 
-  // Root redirect if authenticated user lands on '/' or '/login'
-  if (currentPath === '/' || currentPath === '/login') {
+  const userAccountType: AccountType =
+    userProfile.accountType ||
+    (roleLower === 'applicant'
+      ? 'APPLICANT'
+      : roleLower === 'learner'
+      ? 'LEARNER'
+      : 'STAFF');
+
+  // Root / Auth redirect if authenticated user lands on entry portals
+  if (
+    currentPath === '/' ||
+    currentPath === '/login' ||
+    currentPath === '/auth' ||
+    currentPath === '/staff/login' ||
+    currentPath === '/staff-login'
+  ) {
     const postLoginTarget = getPostLoginPath(userProfile);
-    // Use navigate without infinite loops
-    setTimeout(() => navigate(postLoginTarget), 0);
+    if (postLoginTarget && postLoginTarget !== currentPath) {
+      setTimeout(() => navigate(postLoginTarget), 0);
+    }
   }
 
   // =========================================================================
@@ -157,11 +165,25 @@ export const AppRoutes: React.FC = () => {
     let pageSubtitle = 'Admissions lifecycle, application status, assessments, and offer letters';
     let content = <ApplicantStatusTracker initialTab="status" onNavigate={navigate} />;
 
-    if (currentPath === '/applicant/application' || currentPath.startsWith('/apply')) {
-      const cohortId = currentPath.split('/apply/')[1]?.split('?')[0] || undefined;
+    if (
+      currentPath === '/applicant/application' ||
+      currentPath.startsWith('/apply') ||
+      currentPath.startsWith('/applicant/apply')
+    ) {
+      let cohortId: string | undefined = undefined;
+      if (currentPath.includes('/apply/')) {
+        cohortId = currentPath.split('/apply/')[1]?.split('?')[0] || undefined;
+      }
       pageTitle = 'My Application Form';
       pageSubtitle = 'Complete your official application profile and cohort selection';
       content = <ApplicationFormPage cohortId={cohortId} onNavigate={navigate} />;
+    } else if (
+      currentPath === '/applicant/programmes' ||
+      currentPath === '/applicant/catalog'
+    ) {
+      pageTitle = 'Available Programmes Catalog';
+      pageSubtitle = 'Explore our open cohorts, learning paths, and admissions schedule';
+      content = <ApplicantStatusTracker initialTab="catalog" onNavigate={navigate} />;
     } else if (currentPath === '/applicant/assessment') {
       pageTitle = 'Pre-Admission Assessment';
       pageSubtitle = 'Timed assessment and technical aptitude screening';
@@ -269,8 +291,11 @@ export const AppRoutes: React.FC = () => {
     currentPath.startsWith('/staff') ||
     currentPath.startsWith('/portal/pm') ||
     currentPath.startsWith('/portal/facilitator') ||
+    currentPath.startsWith('/portal/staff') ||
     currentPath.startsWith('/portal/admin') ||
-    currentPath.startsWith('/portal/me')
+    currentPath.startsWith('/portal/me') ||
+    currentPath.startsWith('/pm') ||
+    currentPath.startsWith('/facilitator')
   ) {
     if (userAccountType !== 'STAFF') {
       return (
