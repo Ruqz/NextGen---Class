@@ -98,11 +98,15 @@ export const AppRoutes: React.FC = () => {
     if (currentPath === '/staff/login' || currentPath === '/staff-login') {
       return <StaffLoginPage onNavigate={navigate} />;
     }
-    if (currentPath === '/apply' || currentPath.startsWith('/apply')) {
-      const cohortId = currentPath.split('/apply/')[1]?.split('?')[0] || undefined;
-      return <ApplicationFormPage cohortId={cohortId} onNavigate={navigate} />;
+    if (
+      currentPath === '/apply' ||
+      currentPath.startsWith('/apply') ||
+      currentPath === '/register' ||
+      currentPath === '/applicant/register'
+    ) {
+      return <AuthPage initialMode="register" onNavigate={navigate} />;
     }
-    return <AuthPage onNavigate={navigate} />;
+    return <AuthPage initialMode="login" onNavigate={navigate} />;
   }
 
   // 3. ACCOUNT SUSPENDED GUARD

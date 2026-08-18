@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { initializeFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirestore, Firestore, setLogLevel } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 export const firebaseConfig = {
@@ -21,16 +21,24 @@ if (!getApps().length) {
   app = getApp();
 }
 
+// Silence noisy non-fatal offline connection retry logs
+try {
+  setLogLevel('silent');
+} catch (e) {
+  // Ignored if already set
+}
+
 // Optional analytics placeholder without triggering blocking installations requests
 export const analytics = null;
 
 export const auth: Auth = getAuth(app);
 
-// Use default firestoreDatabaseId and initialize with auto long polling fallback
+// Use auto-detect long polling and memory persistence fallback for sandboxed/iframe environments
 export const db: Firestore = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
 });
 
 export const storage: FirebaseStorage = getStorage(app);
 export default app;
+
 

@@ -817,6 +817,26 @@ export const findLearnerByLearnerId = async (
         updatedAt: new Date().toISOString(),
       };
     }
+    if (cleanId === 'NGP-2026-00101') {
+      return {
+        id: 'learner_david_adeleke',
+        learnerId: 'NGP-2026-00101',
+        userId: 'usr_david_adeleke',
+        email: 'david.adeleke@learner.nextgenclass.org',
+        displayName: 'David Adeleke',
+        phoneNumber: '+234 802 345 6789',
+        programmeId: 'prog_cloud_fs',
+        programmeName: 'Cloud & Full-Stack Development',
+        cohortId: 'cohort_1_2026',
+        cohortName: 'Cohort 1 (Spring 2026)',
+        status: 'ACTIVE',
+        accessState: 'Active',
+        isActivated: true,
+        temporaryPassword: 'NextGen2026!',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
     return null;
   } catch (err) {
     console.warn('Error querying learner by ID:', err);
@@ -832,6 +852,26 @@ export const findLearnerByLearnerId = async (
         programmeName: 'Generative AI & AI Automation',
         cohortId: 'cohort_2_2026',
         cohortName: 'Cohort 2 (Fall 2026)',
+        status: 'ACTIVE',
+        accessState: 'Active',
+        isActivated: true,
+        temporaryPassword: 'NextGen2026!',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    if (cleanId === 'NGP-2026-00101') {
+      return {
+        id: 'learner_david_adeleke',
+        learnerId: 'NGP-2026-00101',
+        userId: 'usr_david_adeleke',
+        email: 'david.adeleke@learner.nextgenclass.org',
+        displayName: 'David Adeleke',
+        phoneNumber: '+234 802 345 6789',
+        programmeId: 'prog_cloud_fs',
+        programmeName: 'Cloud & Full-Stack Development',
+        cohortId: 'cohort_1_2026',
+        cohortName: 'Cohort 1 (Spring 2026)',
         status: 'ACTIVE',
         accessState: 'Active',
         isActivated: true,
